@@ -1,6 +1,8 @@
 title = " Rar.ioWare";
 
-description = `
+description = 
+` Beat each 
+ minigame!
  `;
 
 characters = [
@@ -898,7 +900,7 @@ function tileMatcher() {
 
   // CHOOSING ICON AT START OF GAME
   if (G.ICON_CHOOSER == 0) {
-    G.ICON_CHOOSER = rndi(G.MIN_CHARACTERS, G.MAX_CHARACTERS);
+    G.ICON_CHOOSER = rndi(G.MIN_CHARACTERS, G.MAX_CHARACTERS - 2);
   }
 
   if (G.ICON_CHOOSER == 3) {
@@ -923,8 +925,8 @@ function tileMatcher() {
   }
 
   // UPDATING AND DRAWING THE PLAYER
-  if (G.PLAYER_SECONDS > 60) {
-    G.PLAYER_ICON = rndi(G.MIN_CHARACTERS, G.MAX_CHARACTERS);
+  if (G.PLAYER_SECONDS > 45) {
+    G.PLAYER_ICON = rndi(G.MIN_CHARACTERS, G.MAX_CHARACTERS - 2);
     G.PLAYER_SECONDS = 0;
   }
   G.PLAYER_SECONDS++;
@@ -953,13 +955,13 @@ function tileMatcher() {
   if (input.isJustPressed) {
     if (G.PLAYER_ICON == G.ICON_CHOOSER) {
       color("green");
-      particle(vec((G.WIDTH / 2 - 10), G.HEIGHT / 2), 30, 4, 20, 20);
+      particle(vec((G.WIDTH / 2 - 10), G.HEIGHT / 2), 40, 4, 20, 20);
       play('coin');
       addScore(10 * difficulty);
     }
     else {
       color("red");
-      particle(vec((G.WIDTH / 2 - 10), G.HEIGHT / 2), 20, 4, 90, 10);
+      particle(vec((G.WIDTH / 2 - 10), G.HEIGHT / 2), 40, 4, 90, 10);
       play('explosion');
       addScore(-10 * difficulty);
     }
