@@ -182,7 +182,7 @@ const G = {
   HEIGHT: 75,
 
   RANDOM_START: false,
-  STARTING_GAME: 5, // FIRST GAME INDEX IF RANDOM IS FALSE
+  STARTING_GAME: 4, // FIRST GAME INDEX IF RANDOM IS FALSE
   GAME_TIMES: [4, 6, 5, 8, 10, 10],  // Measured in seconds
   LIVES: 3,
 
@@ -365,6 +365,7 @@ let gameNotSwitched = true;
 let bubbleLoseGame = false;
 let bubbleWinGame = true;
 let transitionInitialized = false;
+let isTransitioning = false;
 
 //---------------------------------
 
@@ -375,32 +376,37 @@ function update() {
   
   individualInit(); // initializes for the individual game
 
-  switch(gameIndex) {
-    case 0: 
-      tileMatcher();
-      break;
-
-    case 1:
-      dontPressIt();
-      break;
-
-    case 2: 
-      magnetCollect();
-      break;
-
-    case 3:
-      bubbleFly();
-      break;
-
-    case 4:
-      ufo();
-      break;
-
-    case 5:
-      smooch();
-      break;
-
+  if(!isTransitioning)
+  {
+    switch(gameIndex) {
+      case 0: 
+        tileMatcher();
+        break;
+  
+      case 1:
+        dontPressIt();
+        break;
+  
+      case 2: 
+        magnetCollect();
+        break;
+  
+      case 3:
+        bubbleFly();
+        break;
+  
+      case 4:
+        ufo();
+        break;
+  
+      case 5:
+        smooch();
+        break;
+  
+    }
   }
+
+  transitionManager();
 
   timerManager();
 }
@@ -495,6 +501,14 @@ function timerManager() {
   }
 }
 
+function transitionManager()
+{
+  if(wonMicrogame || lostMicrogame)
+  {
+    transitionGame();
+  }
+}
+
 // switches to next index and resets timer
 function transitionGame() {
   if(!transitionInitialized)
@@ -503,7 +517,7 @@ function transitionGame() {
     transitionInitialized = true;
   }
   color("light_blue");
-  box(G.WIDTH / 2, transitionBackgroundHeight, G.WIDTH, G.HEIGHT);
+  box(G.WIDTH / 2, transitionBackgroundHeight, G.WIDTH, G.HEIGHT + 20);
 
   transitionIntro();
 
@@ -536,7 +550,6 @@ function transitionGame() {
         gameTimer = 0;
         gameNotSwitched = false;
       }
-
       transitionOutro();
     } else
     {
@@ -596,6 +609,7 @@ function transitionIntro()
     {
       isTransitionIntro = false;
       isTransitionMiddle = true;
+      isTransitioning = true;
     }
   }
 }
@@ -704,6 +718,7 @@ function transitionWin()
   {
     isTransitionMiddle = false;
     isTransitionOutro = true;
+    isTransitioning = false;
   }
 }
 
@@ -721,11 +736,14 @@ function transitionLose()
       
       if(lives <= 0)
       {
+        isTransitioning = false;
+        transitionInitialized = false;
         end();
       }
 
       isTransitionMiddle = false;
       isTransitionOutro = true;
+      isTransitioning = false;
     }
   } else
   {
@@ -757,6 +775,7 @@ function transitionOutro()
       isTransitionOutro = false;
       lostMicrogame = false;
       wonMicrogame = false;
+      transitionInitialized = false;
     }
   }
 }
@@ -780,7 +799,6 @@ function loseGame() {
   if(!wonMicrogame)
   {
     lostMicrogame = true;
-    transitionGame();
   }
 }
 
@@ -788,7 +806,6 @@ function winGame() {
   if(!lostMicrogame)
   {
     wonMicrogame = true;
-    transitionGame();
   }
 }
 
