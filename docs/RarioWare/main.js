@@ -185,7 +185,7 @@ const G = {
 
   RANDOM_START: false,
   STARTING_GAME: 6, // FIRST GAME INDEX IF RANDOM IS FALSE
-  GAME_TIMES: [8, 8, 6, 8, 8, 10, 10],  // Measured in seconds
+  GAME_TIMES: [8, 5, 6, 8, 8, 10, 10],  // Measured in seconds
   LIVES: 3,
 
   // ICON MINIGAME
@@ -860,7 +860,7 @@ function dontPressIt() {
   color("transparent");
 
   //color("red");
-  if(input.isJustPressed &&  rect(input.pos.x, input.pos.y, 1, 1).isColliding.rect.red)
+  if(input.isJustPressed &&  (rect(input.pos.x, input.pos.y, 1, 1).isColliding.rect.red || rect(input.pos.x, input.pos.y, 1, 1).isColliding.rect.yellow))
     loseGame();
 
   if(flag == -1)
@@ -879,26 +879,23 @@ function dontPressIt() {
       // Move the text downwards
       s.pos.y += s.speed;
       // Bring the text back to top once it's past the bottom of the screen
-      s.pos.wrap(0, G.WIDTH, -55, G.HEIGHT);
+      s.pos.wrap(0, G.WIDTH, -85, G.HEIGHT);
 
   
       // Choose a color to draw
       color("cyan");
       // Draw the text
       text("PRESS ME!!!", s.pos);
-
-      color("yellow");
-
     });
 
-    color("transparent");
 
 }
 
 function dontPressItInit() {
-  press_me = times(24, () => {
+  timeoutIsWin = true;
+  press_me = times(18, () => {
     const posX = rnd(0, 15);
-    const posY = rnd(-55, G.HEIGHT);
+    const posY = rnd(-55, 0);
     return {
       pos: vec(posX, posY),
       speed: rnd(G.STAR_SPEED_MIN, G.STAR_SPEED_MAX)
