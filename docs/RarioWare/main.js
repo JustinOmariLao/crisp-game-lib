@@ -182,8 +182,8 @@ const G = {
   HEIGHT: 75,
 
   RANDOM_START: false,
-  STARTING_GAME: 3, // FIRST GAME INDEX IF RANDOM IS FALSE
-  GAME_TIMES: [4, 6, 5, 8, 10],  // Measured in seconds
+  STARTING_GAME: 5, // FIRST GAME INDEX IF RANDOM IS FALSE
+  GAME_TIMES: [4, 6, 5, 8, 10, 10],  // Measured in seconds
   LIVES: 3,
 
   // ICON MINIGAME
@@ -350,7 +350,7 @@ let breathBlock = false;
  */
 let nathan;
 
-let isTransitionIntro = false;
+let isTransitionIntro = true;
 let isTransitionOutro = false;
 let isTransitionMiddle = false;
 let transitionBackgroundHeight = G.HEIGHT;
@@ -362,6 +362,9 @@ let transitionPauseTimer = 0;
 let wonMicrogame = false;
 let lostMicrogame = false;
 let gameNotSwitched = true;
+let bubbleLoseGame = false;
+let bubbleWinGame = true;
+let transitionInitialized = false;
 
 //---------------------------------
 
@@ -391,6 +394,10 @@ function update() {
 
     case 4:
       ufo();
+      break;
+
+    case 5:
+      smooch();
       break;
 
   }
@@ -464,6 +471,10 @@ function individualInit()
       case 4:
         ufoInit();
         break;
+
+      case 5:
+        smoochInit();
+        break;
     }
   }
 }
@@ -486,6 +497,11 @@ function timerManager() {
 
 // switches to next index and resets timer
 function transitionGame() {
+  if(!transitionInitialized)
+  {
+    transitionInit();
+    transitionInitialized = true;
+  }
   color("light_blue");
   box(G.WIDTH / 2, transitionBackgroundHeight, G.WIDTH, G.HEIGHT);
 
@@ -537,16 +553,28 @@ function transitionGame() {
 
 function transitionInit()
 {
-  isTransitionIntro = true;
-  isTransitionOutro = false;
-  transitionBackgroundHeight = G.HEIGHT + (G.HEIGHT / 2);
-
   nathan = {
     pos: vec(G.WIDTH / 2, 140),
     speed: 2,
     sinRate: 0.05,
     spriteOffset: vec(6, 6)
   }
+
+  isTransitionIntro = true;
+  isTransitionOutro = false;
+  transitionBackgroundHeight = G.HEIGHT + (G.HEIGHT / 2);
+  isTransitionMiddle = false;
+  livesBlink = false;
+  lifeBlinkCount = 0;
+  talkOffset = 0;
+  transitionPauseTimer = 0;
+  wonMicrogame = false;
+  lostMicrogame = false;
+  gameNotSwitched = true;
+  bubbleLoseGame = false;
+  bubbleWinGame = true;
+  transitionInitialized = false;
+
 }
 
 function transitionIntro()
@@ -727,6 +755,8 @@ function transitionOutro()
     } else
     {
       isTransitionOutro = false;
+      lostMicrogame = false;
+      wonMicrogame = false;
     }
   }
 }
@@ -1213,4 +1243,213 @@ function ufoInit() {
 
   right = true;
   frameCount = 0;
+}
+
+var smoochPlayerSize;
+var smoochPlayerSinSize;
+var smoochPlayerLipSpeed;
+var lipSize;
+var lipSinSize;
+var lipSpeed;
+var smoochPositionLeniency;
+var smoochSizeLeniency;
+var smoochGameWon;
+var smoochGameLost;
+var smoochEndTimer;
+
+/** @typedef {{pos: Vector}} Lips */
+/** @type { Lips } */
+let lips;
+
+function drawFaceBase()
+{
+	color("black");
+
+	//draw outline
+	line(10, -2, 5, 7, 4);
+	line(5, 7, 7, 48, 4);
+	line(7, 48, 25, 72, 4);
+	line(25, 72, 49, 72, 4);
+	line(49, 72, 69, 53, 4);
+	line(69, 53, 75, 28, 4);
+	line(75, 28, 75, -2, 4);
+
+	//draw wrinkles
+	line(17, 52, 26, 44, 4);
+	line(48, 44, 57, 52, 4);
+
+	//draw Nose
+	color("purple");
+	line(38, 25, 31, 40, 4);
+	line(31, 40, 40, 42, 4);
+	line(40, 42, 38, 25, 4);
+	line(35, 41, 38, 25, 4);
+
+}
+
+function drawFaceLose()
+{
+	drawFaceBase();
+	color("black");
+
+	//draw eyebrows
+	line(6, 8, 28, 18, 4);
+	line(46, 17, 68, 8, 4);
+
+	//draw eyes
+	arc(20, 23, 8, 4, 0, PI);
+	arc(56, 23, 8, 4, .3, PI);
+
+	line(11, 23, 28, 23, 4);
+	line(46, 23, 65, 23, 4);
+
+	color("black");
+
+}
+
+function drawFaceWin()
+{
+	drawFaceBase();
+	color("black");
+
+	//draw eyebrows
+	line(6, 18, 28, 8, 4);
+	line(46, 7, 68, 18, 4);
+
+	//draw eyes
+	arc(20, 23, 8, 4, 0, PI);
+	arc(56, 23, 8, 4, .3, PI);
+
+	line(26, 29, 28, 33, 2);
+	line(19, 33, 19, 36, 2);
+	line(11, 30, 9, 33, 2);
+
+	line(63, 30, 65, 34, 2);
+	line(56, 33, 56, 35, 2);
+	line(47, 30, 44, 33, 2);
+
+	//draw blush
+	color("purple");
+	line(9, 41, 12, 36, 4);
+	line(16, 41, 18, 37, 4);
+	line(22, 42, 25, 38, 4);
+
+	line(46, 42, 48, 38, 4);
+	line(53, 44, 56, 39, 4);
+	line(61, 42, 64, 38, 4);
+	
+
+
+	color("black");
+
+}
+
+function drawLips(pos, size)
+{
+	//upper lip
+	line(pos.x + (size * 16), pos.y, pos.x + (size * 5), pos.y - (size * 8), 4);
+	line(pos.x - (size * 15), pos.y, pos.x - (size * 6), pos.y - (size * 8), 4);
+
+	line(pos.x, pos.y - (size * 5), pos.x + (size * 5), pos.y - (size * 8), 4);
+	line(pos.x, pos.y - (size * 5), pos.x - (size * 6), pos.y - (size * 8), 4);
+
+	//bottom Lip
+	line(pos.x + (size * 16), pos.y, pos.x + (size * 5), pos.y + (size * 8), 4);
+	line(pos.x - (size * 15), pos.y, pos.x - (size * 5), pos.y + (size * 8), 4);
+	line(pos.x + (size * 3), pos.y + (size * 8), pos.x - (size * 3), pos.y + (size * 8), 4);
+}
+
+function smoochPlayerManager()
+{
+	if(!smoochGameWon && !smoochGameLost)
+	{
+		player.pos = vec(input.pos.x, input.pos.y);
+		smoochPlayerSinSize += smoochPlayerLipSpeed;
+		smoochPlayerSize =  (Math.sin(smoochPlayerSinSize) / 1.2) + 1;
+		color("cyan");
+		drawLips(player.pos, smoochPlayerSize);
+	}
+}
+
+function smoochLipManager()
+{
+	if(smoochGameWon)
+	{
+		color("cyan");
+	} else
+	{
+		color("red");
+	}
+	drawLips(lips.pos, lipSize);
+}
+
+function winCheck()
+{
+	if(input.isJustPressed && !smoochGameLost && !smoochGameWon)
+	{
+		let positionCheck = (player.pos.x >= lips.pos.x - smoochPositionLeniency && player.pos.x <= lips.pos.x + smoochPositionLeniency && player.pos.y >= lips.pos.y - smoochPositionLeniency && player.pos.y <= lips.pos.y + smoochPositionLeniency );
+		let sizeCheck = (smoochPlayerSize >= lipSize - smoochSizeLeniency && smoochPlayerSize <= lipSize + smoochSizeLeniency);
+		if(positionCheck && sizeCheck)
+		{
+			play("coin");
+			smoochGameWon = true;
+		} else
+		{
+			play("explosion");
+			smoochGameLost = true;
+		}
+	}
+}
+
+function smoochInit()
+{
+	lips = {pos: vec(37, 56)};
+	player = {pos: vec(37, 56)};
+
+	smoochPlayerSize = 1;
+	smoochPlayerSinSize = 0;
+	smoochPlayerLipSpeed = .05;
+
+	lipSize = 1;
+	lipSinSize = 0;
+	lipSpeed = 0.05;
+
+	smoochGameLost = false;
+	smoochGameWon = false;	
+
+	smoochPositionLeniency = 3;
+	smoochSizeLeniency = .18;
+
+	smoochEndTimer = 0;
+}
+
+function smooch() {
+	if (!ticks) {
+		smoochInit();
+	}
+
+	smoochLipManager();
+
+	smoochPlayerManager();
+	
+	winCheck();
+
+	if(smoochGameWon)
+	{
+		drawFaceWin();
+		smoochEndTimer++;
+		if(smoochEndTimer > 90)
+		{
+			winGame();
+		}
+	} else if(smoochGameLost)
+	{
+		drawFaceLose();
+		smoochEndTimer++;
+		if(smoochEndTimer > 90)
+		{
+			loseGame();
+		}
+	}
+
 }
