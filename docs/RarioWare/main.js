@@ -5,12 +5,12 @@ description = `
 
 characters = [
 `
- l  l 
- llll 
- lyyl
-rllllb
- llll
- l  l
+  bbb 
+  bbb 
+   b  
+  bbb 
+   b  
+  b b
 `,
 
 `
@@ -87,6 +87,85 @@ rrrrrr
 rllllr
 rrrrrr
 rr  rr
+`,//beginning of nathan sprites (k - s)
+`
+     w
+   www
+  wwww
+ wwwww
+  wwwy
+  w yy
+`,
+`
+wwwwww
+wwwwww
+wwwwww
+wwwwww
+yyyyyy
+yyyyyy
+`,
+`
+w     
+ww    
+www   
+www   
+yww   
+yyw   
+`,
+`
+    yw
+    yl
+    ww
+   wyy
+    ww
+    yy
+`,
+`
+wwyyww
+cypylc
+wwwwww
+wppwyy
+yppyww
+yyyyyy
+`,
+`
+wyw   
+ywy   
+wwy   
+wyy   
+yyy   
+yy    
+`,
+`
+    yy
+     y
+     y
+      
+      
+      
+`,
+`
+rrrrry
+yyyyyy
+yyyyyy
+yyyyyy
+yyyyy 
+      
+`,
+`
+yy    
+y     
+y     
+      
+      
+      
+`,
+`
+ r r  
+r r r 
+r   r 
+ r r  
+  r   
 `
 ];
   
@@ -96,8 +175,8 @@ const G = {
   HEIGHT: 75,
 
   RANDOM_START: false,
-  STARTING_GAME: 2, // FIRST GAME INDEX IF RANDOM IS FALSE
-  GAME_TIMES: [8, 8, 6, 8, 8],  // Measured in seconds
+  STARTING_GAME: 3, // FIRST GAME INDEX IF RANDOM IS FALSE
+  GAME_TIMES: [4, 6, 5, 8, 5],  // Measured in seconds
 
   // ICON MINIGAME
   STAR_SPEED_MIN: 0.5,
@@ -112,17 +191,17 @@ const G = {
 
 // magnet collect variables
 const MC = {
-  PLAYER_MOVE_SPEED: 0.65,
+  PLAYER_MOVE_SPEED: 0.3,
 	PLAYER_FRICTION: 0.9,
-	PLAYER_PULL_RANGE: 20,
+	PLAYER_PULL_RANGE: 30,
 	PLAYER_PULL_SPEED: 0.1,
 
-  DEBRIS_NUMBER: 15,
-	DEBRIS_SIZE_MIN: 4,
-	DEBRIS_SIZE_MAX: 7,
+  DEBRIS_NUMBER: 12,
+	DEBRIS_SIZE_MIN: 3,
+	DEBRIS_SIZE_MAX: 6,
 	DEBRIS_ATTACH_DISTANCE: 5,
 	DEBRIS_FRICTION: 0.95,
-	DEBRIS_SPAWN_SPACING: 15,
+	DEBRIS_SPAWN_SPACING: 10,
   DEBRIS_SPAWN_OFFSET: 5,
 }
 
@@ -218,6 +297,7 @@ let mcDebris;
  * @type { Bubble }
  */
 let bubble;
+let bubbleTick = 0;
 let breath;
 let breathBlock = false;
 /////bubbleFly variables//////
@@ -231,9 +311,32 @@ let gameFailed;
 let successPlayed;
 //---------------------------------
 
+//-----transition variables--------
+/**
+ * @typedef {{
+ * pos: Vector
+ * speed: number
+ * sinRate: number
+ * spriteOffset: Vector
+ * }} nathan
+ */
+let nathan;
+
+let isTransitionIntro = false;
+let isTransitionOutro = false;
+let isTransitionMiddle = false;
+let transitionBackgroundHeight = G.HEIGHT;
+let lives = 2;
+let livesBlink = false;
+let lifeBlinkCount = 0;
+let talkOffset = 0;
+let transitionPauseTimer = 0;
+
+//---------------------------------
+
 function update() {
   if (!ticks) {
-    initialize()
+    initialize();
   }
   
   individualInit(); // initializes for the individual game
@@ -366,6 +469,245 @@ function transitionGame() {
   gameTimer = 0;
 }
 
+function transitionInit()
+{
+  isTransitionIntro = true;
+  isTransitionOutro = false;
+  transitionBackgroundHeight = G.HEIGHT + (G.HEIGHT / 2);
+
+  nathan = {
+    pos: vec(G.WIDTH / 2, 140),
+    speed: 2,
+    sinRate: 0.05,
+    spriteOffset: vec(6, 6)
+  }
+}
+
+function transitionIntro()
+{
+  if(isTransitionIntro)
+  {
+    if(transitionBackgroundHeight > (G.HEIGHT/2))
+    {
+      transitionBackgroundHeight -= 4; 
+    } else
+    {
+      transitionBackgroundHeight = G.HEIGHT / 2;
+    }
+
+    if(nathan.pos.y > (G.HEIGHT / 2))
+    {
+      nathan.pos.y -= nathan.speed;
+    } else
+    {
+      isTransitionIntro = false;
+      isTransitionMiddle = true;
+    }
+  }
+}
+
+function livesWin()
+{
+  if(ticks % 30 == 0)
+  {
+    lifeBlinkCount++;
+    if(livesBlink)
+    {
+      livesBlink = false;
+      
+    } else
+    {
+      livesBlink = true;
+    }
+  }
+
+  if(livesBlink)
+  {
+    color("black");
+    for(var i = 0; i < lives; i++)
+    {
+      char("t", ((G.WIDTH / 2) - 10) + i * 10, (G.HEIGHT / 2) - 20);
+    }
+  }
+}
+
+function livesLose()
+{
+  if(ticks % 30 == 0)
+  {
+    lifeBlinkCount++;
+    if(livesBlink)
+    {
+      livesBlink = false;
+      
+    } else
+    {
+      livesBlink = true;
+    }
+  }
+
+  for(var i = 0; i < lives; i++)
+  {
+    color("black");
+    if(i == (lives - 1))
+    {
+      if(livesBlink)
+      {
+        char("t", ((G.WIDTH / 2) - 10) + i * 10, (G.HEIGHT / 2) - 20);
+      }
+    } else
+    {
+      char("t", ((G.WIDTH / 2) - 10) + i * 10, (G.HEIGHT / 2) - 20);
+    }
+  }
+
+}
+
+function nathanRad()
+{
+  if(ticks % 15 == 0)
+  {
+    if(talkOffset == 0)
+    {
+      talkOffset += 1;
+    } else
+    {
+      talkOffset -= 1;
+    }
+  }
+  color("black");
+  text("That was rad", nathan.pos.x - 33, nathan.pos.y + 20);
+}
+
+function nathanBad()
+{
+  if(ticks % 15 == 0)
+  {
+    if(talkOffset == 0)
+    {
+      talkOffset += 1;
+    } else
+    {
+      talkOffset -= 1;
+    }
+  }
+  color("black");
+  text("That was bad", nathan.pos.x - 33, nathan.pos.y + 20);
+}
+
+function transitionWin()
+{
+  if(!isTransitionIntro && !isTransitionOutro && isTransitionMiddle)
+  {
+    livesWin();
+    nathanRad();
+  } else
+  {
+    talkOffset = 0;
+  }
+
+  if(lifeBlinkCount >= 8)
+  {
+    isTransitionMiddle = false;
+    isTransitionOutro = true;
+  }
+}
+
+function transitionLose()
+{
+  if(!isTransitionIntro && !isTransitionOutro && isTransitionMiddle)
+  {
+    livesLose();
+    nathanBad(); 
+
+    if(lifeBlinkCount >= 8)
+    { 
+      lives--;
+      play("explosion");
+      
+      if(lives <= 0)
+      {
+        end();
+      }
+
+      isTransitionMiddle = false;
+      isTransitionOutro = true;
+    }
+  } else
+  {
+    talkOffset = 0;
+  }
+}
+
+function transitionOutro()
+{
+  if(isTransitionOutro)
+  {
+    if(nathan.pos.y < (G.HEIGHT / 2) + 25)
+    {
+      transitionBackgroundHeight -= 4; 
+    }
+    if(transitionBackgroundHeight < G.HEIGHT + (G.HEIGHT / 2))
+    {
+      transitionBackgroundHeight += 4; 
+    } else
+    {
+      transitionBackgroundHeight = G.HEIGHT + (G.HEIGHT / 2);
+    }
+
+    if(nathan.pos.y < (G.HEIGHT + 50))
+    {
+      nathan.pos.y += nathan.speed;
+    } else
+    {
+      isTransitionOutro = false;
+    }
+  }
+}
+
+function drawNathan()
+{
+  color("black");
+  char("k", nathan.pos.x - nathan.spriteOffset.x, nathan.pos.y - nathan.spriteOffset.y);
+  char("l", nathan.pos.x, nathan.pos.y - nathan.spriteOffset.y);
+  char("m", nathan.pos.x + nathan.spriteOffset.x, nathan.pos.y - nathan.spriteOffset.y);
+  char("n", nathan.pos.x - nathan.spriteOffset.x, nathan.pos.y);
+  char("o", nathan.pos.x, nathan.pos.y);
+  char("p", nathan.pos.x + nathan.spriteOffset.x, nathan.pos.y);
+  char("q", nathan.pos.x - nathan.spriteOffset.x, nathan.pos.y + nathan.spriteOffset.y + talkOffset);
+  char("r", nathan.pos.x, nathan.pos.y + nathan.spriteOffset.y + talkOffset);
+  char("s", nathan.pos.x + nathan.spriteOffset.x, nathan.pos.y + nathan.spriteOffset.y + talkOffset);
+}
+
+function transitionAnimation()
+{  
+  
+  color("light_blue");
+  box(G.WIDTH / 2, transitionBackgroundHeight, G.WIDTH, G.HEIGHT);
+
+  transitionIntro();
+  transitionWin();
+  if(isTransitionOutro)
+  {
+    transitionPauseTimer++;
+
+
+    if(transitionPauseTimer >= 120)
+    {
+      transitionOutro();
+    } else
+    {
+      for(var i = 0; i < lives; i++)
+      {
+        color("black");
+        char("t", ((G.WIDTH / 2) - 10) + i * 10, (G.HEIGHT / 2) - 20);
+      }
+    }
+  }
+
+  drawNathan();
+}
+
 //~~~~~~~Microgames~~~~~~~
 function dontPressIt() {
 
@@ -455,7 +797,7 @@ function tileMatcher() {
 
   // CHOOSING ICON AT START OF GAME
   if (G.ICON_CHOOSER == 0) {
-    G.ICON_CHOOSER = rndi(G.MIN_CHARACTERS, G.MAX_CHARACTERS - 2);
+    G.ICON_CHOOSER = rndi(G.MIN_CHARACTERS, G.MAX_CHARACTERS);
   }
 
   if (G.ICON_CHOOSER == 3) {
@@ -480,8 +822,8 @@ function tileMatcher() {
   }
 
   // UPDATING AND DRAWING THE PLAYER
-  if (G.PLAYER_SECONDS > 45) {
-    G.PLAYER_ICON = rndi(G.MIN_CHARACTERS, G.MAX_CHARACTERS - 2);
+  if (G.PLAYER_SECONDS > 60) {
+    G.PLAYER_ICON = rndi(G.MIN_CHARACTERS, G.MAX_CHARACTERS);
     G.PLAYER_SECONDS = 0;
   }
   G.PLAYER_SECONDS++;
@@ -510,13 +852,13 @@ function tileMatcher() {
   if (input.isJustPressed) {
     if (G.PLAYER_ICON == G.ICON_CHOOSER) {
       color("green");
-      particle(vec((G.WIDTH / 2 - 10), G.HEIGHT / 2), 40, 4, 20, 20);
+      particle(vec((G.WIDTH / 2 - 10), G.HEIGHT / 2), 30, 4, 20, 20);
       play('coin');
       addScore(10 * difficulty);
     }
     else {
       color("red");
-      particle(vec((G.WIDTH / 2 - 10), G.HEIGHT / 2), 40, 4, 90, 10);
+      particle(vec((G.WIDTH / 2 - 10), G.HEIGHT / 2), 20, 4, 90, 10);
       play('explosion');
       addScore(-10 * difficulty);
     }
@@ -524,17 +866,14 @@ function tileMatcher() {
 }
 
 function magnetCollect() {
-  color("light_blue");
-  text("COLLECT", 19,15);
-  text(String(mcDebris.length), 37, 25);
   if (input.isPressed) {
 		if (mcPlayer.pos.distanceTo(input.pos) > mcPlayer.moveSpeed) {
 			if (mcPlayer.pullCount < 0) {
 				// Backup big fix
 				mcPlayer.pullCount = 0;
 			}
-			mcPlayer.velocity.x = mcPlayer.moveSpeed * Math.cos(mcPlayer.pos.angleTo(input.pos)) / (mcPlayer.pullCount / 5 + 1);
-			mcPlayer.velocity.y = mcPlayer.moveSpeed * Math.sin(mcPlayer.pos.angleTo(input.pos)) / (mcPlayer.pullCount / 5 + 1);
+			mcPlayer.velocity.x = mcPlayer.moveSpeed * Math.cos(mcPlayer.pos.angleTo(input.pos)) / (mcPlayer.pullCount / 4 + 1);
+			mcPlayer.velocity.y = mcPlayer.moveSpeed * Math.sin(mcPlayer.pos.angleTo(input.pos)) / (mcPlayer.pullCount / 4 + 1);
 			//clamp and add if anything else moves the player
 		} else {
 			mcPlayer.velocity = vec(0, 0);
@@ -560,7 +899,7 @@ function magnetCollect() {
         d.isPulled = true;
         d.velocity = vec(0, 0);
         mcPlayer.pullCount += 1;
-        play("hit");
+        play("jump");
       }
       // circle around player
       if (d.isPulled) {
@@ -633,12 +972,16 @@ function magnetInit() {
 
 function ExcludeArea(pos, width, height) {
   var posX = rnd(0, 1) < 0.5 ? rnd(MC.DEBRIS_SPAWN_OFFSET, pos.x - width) : rnd(pos.x + width, G.WIDTH - MC.DEBRIS_SPAWN_OFFSET);
-  var posY = rnd(0, 1) < 0.5 ? rnd(MC.DEBRIS_SPAWN_OFFSET, pos.y - height) : rnd(pos.y + height, G.HEIGHT - (MC.DEBRIS_SPAWN_OFFSET + 5000));
+  var posY = rnd(0, 1) < 0.5 ? rnd(MC.DEBRIS_SPAWN_OFFSET, pos.y - height) : rnd(pos.y + height, G.HEIGHT - MC.DEBRIS_SPAWN_OFFSET);
   const vector = vec(posX, posY);
   return vector;
 }
 
 function bubbleFly() {
+  if (bubbleTick == 0) {
+    bubbleFlyInit();
+  }
+  bubbleTick++;
   color("black");
   char("i", G.WIDTH/2, 65);
   breathBlock = false;
@@ -656,11 +999,11 @@ function bubbleFly() {
       play("jump");
       color("black");
       particle(G.WIDTH/2, 64, 4, 1, -PI/2, PI/4);
-      bubble.vy = -0.1*sqrt(1);
+      bubble.vy = -0.1*sqrt(difficulty);
       breath -= 2;
     }
     else {
-      bubble.vy += 0.009 * 1;
+      bubble.vy += 0.009 * difficulty;
       bubble.pos.y += bubble.vy;
       
     }
@@ -668,25 +1011,25 @@ function bubbleFly() {
   if(input.isPressed) {
     if(breath >= 1 && !breathBlock) {
       play("laser");
-      bubble.vy -= 0.06 * 1;
+      bubble.vy -= 0.06 * difficulty;
       bubble.pos.y += bubble.vy;
       breath--;
     }
     else {
-      bubble.vy += 0.009 * 1;
+      bubble.vy += 0.009 * difficulty;
       bubble.pos.y += bubble.vy;
     }
   } else {
-    bubble.vy += 0.009 * 1;
+    bubble.vy += 0.009 * difficulty;
     bubble.pos.y += bubble.vy;
-    if (breath < 10 && ticks%10 == 0) {
+    if (breath < 10 && bubbleTick%10 == 0) {
       breath++;
     }
   }
   color("black");
   char("h", bubble.pos);
 
-  nextFloorDist -= 1;
+  nextFloorDist -= difficulty;
  // generate moving floor
   if (nextFloorDist < 0) {
     const width = rnd(20, 50);
@@ -697,13 +1040,13 @@ function bubbleFly() {
     nextFloorDist += width + rnd(20, 50);
   }
   remove(floors, (f) => {
-    f.pos.x -= 1;
+    f.pos.x -= difficulty;
     color("light_black");
     const c = box(f.pos, f.width, 1).isColliding.char;
     if (c.h) {
       play("explosion");
-      addScore(-10 * difficulty);
       transitionGame();
+      bubbleTick = 0;
       return true;
     }
     if(f.pos.x < -f.width / 2) {
@@ -715,8 +1058,8 @@ function bubbleFly() {
 
   if(bubble.pos.y >= 75 || bubble.pos.y < -3) {
     play("hit");
-    addScore(-10 * difficulty);
     transitionGame();
+    bubbleTick = 0;
   }
 
   var y = 65;
@@ -734,6 +1077,7 @@ function bubbleFlyInit() {
   floors = [];
   nextFloorDist = 0;
   breath = 10;
+  bubbleTick = 0;
 }
 
 function findItInit(){
