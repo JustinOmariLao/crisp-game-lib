@@ -184,7 +184,7 @@ const G = {
   HEIGHT: 75,
 
   RANDOM_START: false,
-  STARTING_GAME: 2, // FIRST GAME INDEX IF RANDOM IS FALSE
+  STARTING_GAME: 6, // FIRST GAME INDEX IF RANDOM IS FALSE
   GAME_TIMES: [8, 8, 6, 8, 8, 10, 10],  // Measured in seconds
   LIVES: 3,
 
@@ -369,10 +369,13 @@ let transitionPauseTimer = 0;
 let wonMicrogame = false;
 let lostMicrogame = false;
 let gameNotSwitched = true;
-let bubbleLoseGame = false;
-let bubbleWinGame = true;
 let transitionInitialized = false;
 let isTransitioning = false;
+let timeoutIsWin = false;
+let bubbleFlyWin = false;
+let bubbleFlyLose = false;
+let tileWin = false;
+let tileLose = false;
 
 //---------------------------------
 
@@ -417,9 +420,11 @@ function update() {
     }
   }
 
+  timerManager();
+
   transitionManager();
 
-  timerManager();
+  
   //??
 }
 
@@ -463,6 +468,11 @@ function initialize()
   };
 
   lives = G.LIVES;
+  gameStarted = false;
+  wonMicrogame = false;
+  lostMicrogame = false;
+
+  gameTimer = 0;
 }
 
 function individualInit() 
@@ -473,9 +483,11 @@ function individualInit()
     // starts at 0
     switch(gameIndex) {
       case 0: 
+        tileMatcherInit();
         break;
 
       case 1:
+        dontPressItInit();
         break;
 
       case 2: 
@@ -516,7 +528,13 @@ function timerManager() {
   let barLength =  ((G.GAME_TIMES[currentGame.trueIndex] - gameTimer)/G.GAME_TIMES[currentGame.trueIndex]) * G.WIDTH;
   bar(0,G.HEIGHT - 1, barLength, 4.5,0,0);
   if (gameTimer > G.GAME_TIMES[currentGame.trueIndex]) {
-    transitionGame();
+    if(timeoutIsWin)
+    {
+      winGame();
+    } else
+    {
+      loseGame();
+    }
   }
 }
 
@@ -568,6 +586,7 @@ function transitionGame() {
 
         gameTimer = 0;
         gameNotSwitched = false;
+        isTransitioning = false;
       }
       transitionOutro();
     } else
@@ -603,8 +622,6 @@ function transitionInit()
   wonMicrogame = false;
   lostMicrogame = false;
   gameNotSwitched = true;
-  bubbleLoseGame = false;
-  bubbleWinGame = true;
   transitionInitialized = false;
 
 }
@@ -728,16 +745,16 @@ function transitionWin()
   {
     livesWin();
     nathanRad();
+    if(lifeBlinkCount >= 8)
+    {
+      isTransitionMiddle = false;
+      isTransitionOutro = true;
+      play("coin");
+      addScore(100, G.WIDTH/2, (G.HEIGHT/2) - 10);
+    }
   } else
   {
     talkOffset = 0;
-  }
-
-  if(lifeBlinkCount >= 8)
-  {
-    isTransitionMiddle = false;
-    isTransitionOutro = true;
-    isTransitioning = false;
   }
 }
 
@@ -762,7 +779,6 @@ function transitionLose()
 
       isTransitionMiddle = false;
       isTransitionOutro = true;
-      isTransitioning = false;
     }
   } else
   {
@@ -829,6 +845,11 @@ function winGame() {
 }
 
 //~~~~~~~Microgames~~~~~~~
+function dontPressItInit()
+{
+  timeoutIsWin = true;
+}
+
 function dontPressIt() {
 
   var flag = 1;
@@ -849,7 +870,7 @@ function dontPressIt() {
 
   //color("red");
   if(input.isJustPressed &&  rect(input.pos.x, input.pos.y, 1, 1).isColliding.rect.red)
-    addScore(-10 * difficulty);
+    loseGame();
 
   if(flag == -1)
     color("green");
@@ -886,6 +907,13 @@ function dontPressIt() {
       addScore(10 * difficulty);
 
 
+}
+
+function tileMatcherInit()
+{
+  timeoutIsWin = false;
+  tileWin = false;
+  tileLose = false;
 }
 
 function tileMatcher() {
@@ -974,14 +1002,23 @@ function tileMatcher() {
       color("green");
       particle(vec((G.WIDTH / 2 - 10), G.HEIGHT / 2), 40, 4, 20, 20);
       play('coin');
-      addScore(10 * difficulty);
-    }
-    else {
+      //addScore(10 * difficulty);
+      tileWin = true;
+    } else {
       color("red");
       particle(vec((G.WIDTH / 2 - 10), G.HEIGHT / 2), 40, 4, 90, 10);
       play('explosion');
-      addScore(-10 * difficulty);
+      //addScore(-10 * difficulty);
+      tileLose = true;
     }
+  }
+
+  if(tileWin)
+  {
+    winGame();
+  } else if (tileLose)
+  {
+    loseGame();
   }
 }
 
@@ -1070,7 +1107,7 @@ function magnetCollect() {
     return (outOfBounds || d.isPulled);
     });
     if (mcDebris.length == 0) {
-      transitionGame();
+      winGame();
     }
 }
 
@@ -1091,6 +1128,8 @@ function magnetInit() {
       isPulled: false,
     };
   });
+
+  timeoutIsWin = false;
 }
 
 function ExcludeArea(pos, width, height) {
@@ -1164,27 +1203,37 @@ function bubbleFly() {
     const c = box(f.pos, f.width, 1).isColliding.char;
     if (c.h) {
       play("explosion");
-      addScore(-10 * difficulty);
-      transitionGame();
+      //addScore(-10 * difficulty);
+      bubbleFlyLose = true;
       return true;
     }
+    /*
     if(f.pos.x < -f.width / 2) {
       play("coin");
-      addScore(f.width * 0.2, vec(10, f.pos.y));
+      //addScore(f.width * 0.2, vec(10, f.pos.y));
     }
+    */
     return f.pos.x < -f.width / 2;
   });
 
   if(bubble.pos.y >= 75 || bubble.pos.y < -3) {
     play("hit");
-    addScore(-10 * difficulty);
-    transitionGame();
+    //addScore(-10 * difficulty);
+    bubbleFlyLose = true;
   }
 
   var y = 65;
   for( var i = 0; i < breath; i++) {
     rect(3, y, 3, 4);
     y -= 5;
+  }
+
+  if(bubbleFlyWin)
+  {
+    winGame();
+  } else if (bubbleFlyLose)
+  {
+    loseGame();
   }
 }
 
@@ -1196,6 +1245,9 @@ function bubbleFlyInit() {
   floors = [];
   nextFloorDist = 0;
   breath = 10;
+  timeoutIsWin = true;
+  bubbleFlyWin = false;
+  bubbleFlyLose = false;
 }
 
 function ufo() {
@@ -1255,7 +1307,7 @@ function ufo() {
 
 	frameCount++;
 	if (frameCount == 60) {
-		addScore(10, G.WIDTH, G.HEIGHT/2);
+		//addScore(10, G.WIDTH, G.HEIGHT/2);
 		frameCount = 0;
 	}
 	color("red");
@@ -1277,6 +1329,7 @@ function ufoInit() {
 
   right = true;
   frameCount = 0;
+  timeoutIsWin = true;
 }
 
 function findItInit(){
@@ -1286,6 +1339,7 @@ function findItInit(){
   gameComplete = false;
   gameFailed = false;
   successPlayed = false;
+  timeoutIsWin = false;
 }
 
 function findIt(){
@@ -1315,19 +1369,23 @@ function findIt(){
   }else{
     color("black");
     text("YOU WIN", 20,28);
-    addScore(30);
+    //addScore(30);
     particle(charPosX, charPosY, 1.2, 2);
+    winGame();
     if(!successPlayed){
       play("coin");
+      winGame();
       successPlayed = true;
     }
   }
 
+  /*
   // if the game was lost, subtract 20 points
   if(!gameComplete && gameTimer >= 4.99){
     play("explosion");
-    addScore(-20);
+    //addScore(-20);
   }
+  */
 
   char("j", charPosX, charPosY);
 }
@@ -1508,12 +1566,10 @@ function smoochInit()
 	smoochSizeLeniency = .18;
 
 	smoochEndTimer = 0;
+  timeoutIsWin = false;
 }
 
 function smooch() {
-	if (!ticks) {
-		smoochInit();
-	}
 
 	smoochLipManager();
 
