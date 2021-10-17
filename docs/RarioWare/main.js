@@ -1590,6 +1590,10 @@ function smooch() {
 		{
 			loseGame();
 		}
-	}
+	} else
+  {
+    color("purple");
+    text("SMOOCH", G.WIDTH/2 - 16, G.HEIGHT/2 - 20);
+  }
 
 }
