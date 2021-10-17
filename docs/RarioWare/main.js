@@ -7,12 +7,12 @@ description =
 
 characters = [
 `
-  bbb 
-  bbb 
-   b  
-  bbb 
-   b  
-  b b
+ l  l 
+ llll 
+ lyyl
+rllllb
+ llll
+ l  l
 `,
 
 `
@@ -184,8 +184,8 @@ const G = {
   HEIGHT: 75,
 
   RANDOM_START: false,
-  STARTING_GAME: 4, // FIRST GAME INDEX IF RANDOM IS FALSE
-  GAME_TIMES: [4, 6, 5, 8, 10, 10],  // Measured in seconds
+  STARTING_GAME: 2, // FIRST GAME INDEX IF RANDOM IS FALSE
+  GAME_TIMES: [8, 8, 6, 8, 8, 10, 10],  // Measured in seconds
   LIVES: 3,
 
   // ICON MINIGAME
@@ -201,17 +201,17 @@ const G = {
 
 // magnet collect variables
 const MC = {
-  PLAYER_MOVE_SPEED: 0.3,
+  PLAYER_MOVE_SPEED: 0.65,
 	PLAYER_FRICTION: 0.9,
-	PLAYER_PULL_RANGE: 30,
+	PLAYER_PULL_RANGE: 20,
 	PLAYER_PULL_SPEED: 0.1,
 
-  DEBRIS_NUMBER: 12,
-	DEBRIS_SIZE_MIN: 3,
-	DEBRIS_SIZE_MAX: 6,
+  DEBRIS_NUMBER: 15,
+	DEBRIS_SIZE_MIN: 4,
+	DEBRIS_SIZE_MAX: 7,
 	DEBRIS_ATTACH_DISTANCE: 5,
 	DEBRIS_FRICTION: 0.95,
-	DEBRIS_SPAWN_SPACING: 10,
+	DEBRIS_SPAWN_SPACING: 15,
   DEBRIS_SPAWN_OFFSET: 5,
 }
 
@@ -239,9 +239,6 @@ let gameTimer = 0;
 
 /** @type  { boolean } */
 let gameStarted = false;
-
-/** @type { number } */
-let lifeCount;
 
 /** @typedef {{pos: Vector, speed: number}} rain */
 /** @type  { rain[] } */
@@ -310,10 +307,18 @@ let mcDebris;
  * @type { Bubble }
  */
 let bubble;
-let bubbleTick = 0;
 let breath;
 let breathBlock = false;
 /////bubbleFly variables//////
+
+//--------findIt Variable---------
+let charPosX;
+let charPosY;
+let timerUIlength;
+let gameComplete;
+let gameFailed;
+let successPlayed;
+//---------------------------------
 
 //ufo minigame
 /**
@@ -400,8 +405,12 @@ function update() {
       case 4:
         ufo();
         break;
-  
+
       case 5:
+        findIt();
+        break;
+  
+      case 6:
         smooch();
         break;
   
@@ -411,6 +420,7 @@ function update() {
   transitionManager();
 
   timerManager();
+  //??
 }
 
 //~~~~~~~Main game utility functions~~~~~~~
@@ -481,6 +491,10 @@ function individualInit()
         break;
 
       case 5:
+        findItInit();
+        break;
+
+      case 6:
         smoochInit();
         break;
     }
@@ -498,8 +512,11 @@ function fillGames() {
 function timerManager() {
   gameTimer += 1/60;
   var currentGame = games[arrayIndex];
+  color("green");
+  let barLength =  ((G.GAME_TIMES[currentGame.trueIndex] - gameTimer)/G.GAME_TIMES[currentGame.trueIndex]) * G.WIDTH;
+  bar(0,G.HEIGHT - 1, barLength, 4.5,0,0);
   if (gameTimer > G.GAME_TIMES[currentGame.trueIndex]) {
-    winGame();
+    transitionGame();
   }
 }
 
@@ -969,14 +986,17 @@ function tileMatcher() {
 }
 
 function magnetCollect() {
+  color("light_blue");
+  text("COLLECT", 19,15);
+  text(String(mcDebris.length), 37, 25);
   if (input.isPressed) {
 		if (mcPlayer.pos.distanceTo(input.pos) > mcPlayer.moveSpeed) {
 			if (mcPlayer.pullCount < 0) {
 				// Backup big fix
 				mcPlayer.pullCount = 0;
 			}
-			mcPlayer.velocity.x = mcPlayer.moveSpeed * Math.cos(mcPlayer.pos.angleTo(input.pos)) / (mcPlayer.pullCount / 4 + 1);
-			mcPlayer.velocity.y = mcPlayer.moveSpeed * Math.sin(mcPlayer.pos.angleTo(input.pos)) / (mcPlayer.pullCount / 4 + 1);
+			mcPlayer.velocity.x = mcPlayer.moveSpeed * Math.cos(mcPlayer.pos.angleTo(input.pos)) / (mcPlayer.pullCount / 5 + 1);
+			mcPlayer.velocity.y = mcPlayer.moveSpeed * Math.sin(mcPlayer.pos.angleTo(input.pos)) / (mcPlayer.pullCount / 5 + 1);
 			//clamp and add if anything else moves the player
 		} else {
 			mcPlayer.velocity = vec(0, 0);
@@ -1002,7 +1022,7 @@ function magnetCollect() {
         d.isPulled = true;
         d.velocity = vec(0, 0);
         mcPlayer.pullCount += 1;
-        play("jump");
+        play("hit");
       }
       // circle around player
       if (d.isPulled) {
@@ -1050,7 +1070,7 @@ function magnetCollect() {
     return (outOfBounds || d.isPulled);
     });
     if (mcDebris.length == 0) {
-      winGame();
+      transitionGame();
     }
 }
 
@@ -1075,16 +1095,12 @@ function magnetInit() {
 
 function ExcludeArea(pos, width, height) {
   var posX = rnd(0, 1) < 0.5 ? rnd(MC.DEBRIS_SPAWN_OFFSET, pos.x - width) : rnd(pos.x + width, G.WIDTH - MC.DEBRIS_SPAWN_OFFSET);
-  var posY = rnd(0, 1) < 0.5 ? rnd(MC.DEBRIS_SPAWN_OFFSET, pos.y - height) : rnd(pos.y + height, G.HEIGHT - MC.DEBRIS_SPAWN_OFFSET);
+  var posY = rnd(0, 1) < 0.5 ? rnd(MC.DEBRIS_SPAWN_OFFSET, pos.y - height) : rnd(pos.y + height, G.HEIGHT - (MC.DEBRIS_SPAWN_OFFSET + 5000));
   const vector = vec(posX, posY);
   return vector;
 }
 
 function bubbleFly() {
-  if (bubbleTick == 0) {
-    bubbleFlyInit();
-  }
-  bubbleTick++;
   color("black");
   char("i", G.WIDTH/2, 65);
   breathBlock = false;
@@ -1102,11 +1118,11 @@ function bubbleFly() {
       play("jump");
       color("black");
       particle(G.WIDTH/2, 64, 4, 1, -PI/2, PI/4);
-      bubble.vy = -0.1*sqrt(difficulty);
+      bubble.vy = -0.1*sqrt(1);
       breath -= 2;
     }
     else {
-      bubble.vy += 0.009 * difficulty;
+      bubble.vy += 0.009 * 1;
       bubble.pos.y += bubble.vy;
       
     }
@@ -1114,25 +1130,25 @@ function bubbleFly() {
   if(input.isPressed) {
     if(breath >= 1 && !breathBlock) {
       play("laser");
-      bubble.vy -= 0.06 * difficulty;
+      bubble.vy -= 0.06 * 1;
       bubble.pos.y += bubble.vy;
       breath--;
     }
     else {
-      bubble.vy += 0.009 * difficulty;
+      bubble.vy += 0.009 * 1;
       bubble.pos.y += bubble.vy;
     }
   } else {
-    bubble.vy += 0.009 * difficulty;
+    bubble.vy += 0.009 * 1;
     bubble.pos.y += bubble.vy;
-    if (breath < 10 && bubbleTick%10 == 0) {
+    if (breath < 10 && ticks%10 == 0) {
       breath++;
     }
   }
   color("black");
   char("h", bubble.pos);
 
-  nextFloorDist -= difficulty;
+  nextFloorDist -= 1;
  // generate moving floor
   if (nextFloorDist < 0) {
     const width = rnd(20, 50);
@@ -1143,13 +1159,13 @@ function bubbleFly() {
     nextFloorDist += width + rnd(20, 50);
   }
   remove(floors, (f) => {
-    f.pos.x -= difficulty;
+    f.pos.x -= 1;
     color("light_black");
     const c = box(f.pos, f.width, 1).isColliding.char;
     if (c.h) {
       play("explosion");
-      loseGame();
-      bubbleTick = 0;
+      addScore(-10 * difficulty);
+      transitionGame();
       return true;
     }
     if(f.pos.x < -f.width / 2) {
@@ -1161,8 +1177,8 @@ function bubbleFly() {
 
   if(bubble.pos.y >= 75 || bubble.pos.y < -3) {
     play("hit");
-    loseGame();
-    bubbleTick = 0;
+    addScore(-10 * difficulty);
+    transitionGame();
   }
 
   var y = 65;
@@ -1180,7 +1196,6 @@ function bubbleFlyInit() {
   floors = [];
   nextFloorDist = 0;
   breath = 10;
-  bubbleTick = 0;
 }
 
 function ufo() {
@@ -1262,6 +1277,59 @@ function ufoInit() {
 
   right = true;
   frameCount = 0;
+}
+
+function findItInit(){
+  charPosX = rnd(15, G.WIDTH);
+  charPosY = rnd(15, G.HEIGHT - 5);
+  timerUIlength = 18;
+  gameComplete = false;
+  gameFailed = false;
+  successPlayed = false;
+}
+
+function findIt(){
+  color("light_cyan");
+  text("FIND IT", 20,15);
+  arc(input.pos, 10.9, 4);
+  bar(input.pos.x + 15, input.pos.y + 15, 20, 4.5, .7);
+
+  if(!gameComplete){
+    if(input.pos.x <= charPosX + 8  && input.pos.x >= charPosX - 8 && 
+      input.pos.y <= charPosY + 8  && input.pos.y >= charPosY - 8){
+      if(timerUIlength > 0){
+        timerUIlength -= 0.25;
+        color("yellow");
+        bar(input.pos.x, input.pos.y - 15, timerUIlength, 3, 0)
+        color("black");
+      }else{
+        gameComplete = true;
+      }
+    }else{
+      timerUIlength = 18;
+      color("transparent");
+    }
+    if(successPlayed){
+      successPlayed = false;
+    }
+  }else{
+    color("black");
+    text("YOU WIN", 20,28);
+    addScore(30);
+    particle(charPosX, charPosY, 1.2, 2);
+    if(!successPlayed){
+      play("coin");
+      successPlayed = true;
+    }
+  }
+
+  // if the game was lost, subtract 20 points
+  if(!gameComplete && gameTimer >= 4.99){
+    play("explosion");
+    addScore(-20);
+  }
+
+  char("j", charPosX, charPosY);
 }
 
 var smoochPlayerSize;
