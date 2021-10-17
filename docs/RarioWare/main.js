@@ -388,8 +388,10 @@ function dontPressIt() {
   color("transparent");
 
   //color("red");
-  if(input.isJustPressed &&  rect(input.pos.x, input.pos.y, 1, 1).isColliding.rect.red)
-    addScore(-10 * difficulty);
+  if(input.isJustPressed &&  rect(input.pos.x, input.pos.y, 1, 1).isColliding.rect.red) {
+    addScore(-100 * difficulty);
+    transitionGame();
+  }
 
   if(flag == -1)
     color("green");
