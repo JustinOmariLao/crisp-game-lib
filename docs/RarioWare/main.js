@@ -166,6 +166,13 @@ r r r
 r   r 
  r r  
   r   
+`, //ufo
+` 
+  cc
+ LLLL
+LLLLLL
+LLLLLL
+ cccc
 `
 ];
   
@@ -176,7 +183,8 @@ const G = {
 
   RANDOM_START: false,
   STARTING_GAME: 3, // FIRST GAME INDEX IF RANDOM IS FALSE
-  GAME_TIMES: [4, 6, 5, 8, 5],  // Measured in seconds
+  GAME_TIMES: [4, 6, 5, 8, 10],  // Measured in seconds
+  LIVES: 3,
 
   // ICON MINIGAME
   STAR_SPEED_MIN: 0.5,
@@ -229,6 +237,9 @@ let gameTimer = 0;
 
 /** @type  { boolean } */
 let gameStarted = false;
+
+/** @type { number } */
+let lifeCount;
 
 /** @typedef {{pos: Vector, speed: number}} rain */
 /** @type  { rain[] } */
@@ -302,14 +313,31 @@ let breath;
 let breathBlock = false;
 /////bubbleFly variables//////
 
-//--------findIt Variable---------
-let charPosX;
-let charPosY;
-let timerUIlength;
-let gameComplete;
-let gameFailed;
-let successPlayed;
-//---------------------------------
+//ufo minigame
+/**
+ * @type { Player }
+ */
+ let platform;
+
+ /**
+  * @type { Player }
+  */
+ let ufoPlayer
+
+ /**
+  * @type { Player }
+  */
+ let enemy;
+
+ /**
+  * @type { boolean }
+  */
+ let right;
+
+ /**
+  * @type { number }
+  */
+ let frameCount;
 
 //-----transition variables--------
 /**
@@ -331,6 +359,9 @@ let livesBlink = false;
 let lifeBlinkCount = 0;
 let talkOffset = 0;
 let transitionPauseTimer = 0;
+let wonMicrogame = false;
+let lostMicrogame = false;
+let gameNotSwitched = true;
 
 //---------------------------------
 
@@ -357,14 +388,14 @@ function update() {
     case 3:
       bubbleFly();
       break;
+
     case 4:
-      findIt();
+      ufo();
       break;
 
   }
 
   timerManager();
-  //??
 }
 
 //~~~~~~~Main game utility functions~~~~~~~
@@ -405,6 +436,8 @@ function initialize()
   player = {
     pos: vec(32, 72),
   };
+
+  lives = G.LIVES;
 }
 
 function individualInit() 
@@ -429,7 +462,7 @@ function individualInit()
         break;
 
       case 4:
-        findItInit();
+        ufoInit();
         break;
     }
   }
@@ -446,27 +479,60 @@ function fillGames() {
 function timerManager() {
   gameTimer += 1/60;
   var currentGame = games[arrayIndex];
-  color("green");
-  let barLength =  ((G.GAME_TIMES[currentGame.trueIndex] - gameTimer)/G.GAME_TIMES[currentGame.trueIndex]) * G.WIDTH;
-  bar(0,G.HEIGHT - 1, barLength, 4.5,0,0);
   if (gameTimer > G.GAME_TIMES[currentGame.trueIndex]) {
-    transitionGame();
+    winGame();
   }
 }
 
 // switches to next index and resets timer
 function transitionGame() {
-  if (games.length > 1) {
-    games.splice(arrayIndex, 1);
-  } else {
-    games.pop();
-    fillGames();
-  }
-  arrayIndex = floor(rnd(0, games.length - 1));
-  gameIndex = games[arrayIndex].trueIndex;
-  gameStarted = false;
+  color("light_blue");
+  box(G.WIDTH / 2, transitionBackgroundHeight, G.WIDTH, G.HEIGHT);
 
-  gameTimer = 0;
+  transitionIntro();
+
+  if(wonMicrogame)
+  {
+    transitionWin();
+  } else if(lostMicrogame)
+  {
+    transitionLose();
+  }
+
+  if(isTransitionOutro)
+  {
+    transitionPauseTimer++;
+
+    if(transitionPauseTimer >= 120)
+    {
+      if(gameNotSwitched)
+      {
+        if (games.length > 1) {
+          games.splice(arrayIndex, 1);
+        } else {
+          games.pop();
+          fillGames();
+        }
+        arrayIndex = floor(rndi(0, games.length - 1));
+        gameIndex = games[arrayIndex].trueIndex;
+        gameStarted = false;
+
+        gameTimer = 0;
+        gameNotSwitched = false;
+      }
+
+      transitionOutro();
+    } else
+    {
+      for(var i = 0; i < lives; i++)
+      {
+        color("black");
+        char("t", ((G.WIDTH / 2) - 10) + i * 10, (G.HEIGHT / 2) - 20);
+      }
+    }
+  }
+
+  drawNathan();
 }
 
 function transitionInit()
@@ -679,33 +745,21 @@ function drawNathan()
   char("s", nathan.pos.x + nathan.spriteOffset.x, nathan.pos.y + nathan.spriteOffset.y + talkOffset);
 }
 
-function transitionAnimation()
-{  
-  
-  color("light_blue");
-  box(G.WIDTH / 2, transitionBackgroundHeight, G.WIDTH, G.HEIGHT);
 
-  transitionIntro();
-  transitionWin();
-  if(isTransitionOutro)
+function loseGame() {
+  if(!wonMicrogame)
   {
-    transitionPauseTimer++;
-
-
-    if(transitionPauseTimer >= 120)
-    {
-      transitionOutro();
-    } else
-    {
-      for(var i = 0; i < lives; i++)
-      {
-        color("black");
-        char("t", ((G.WIDTH / 2) - 10) + i * 10, (G.HEIGHT / 2) - 20);
-      }
-    }
+    lostMicrogame = true;
+    transitionGame();
   }
+}
 
-  drawNathan();
+function winGame() {
+  if(!lostMicrogame)
+  {
+    wonMicrogame = true;
+    transitionGame();
+  }
 }
 
 //~~~~~~~Microgames~~~~~~~
@@ -947,7 +1001,7 @@ function magnetCollect() {
     return (outOfBounds || d.isPulled);
     });
     if (mcDebris.length == 0) {
-      transitionGame();
+      winGame();
     }
 }
 
@@ -1045,7 +1099,7 @@ function bubbleFly() {
     const c = box(f.pos, f.width, 1).isColliding.char;
     if (c.h) {
       play("explosion");
-      transitionGame();
+      loseGame();
       bubbleTick = 0;
       return true;
     }
@@ -1058,7 +1112,7 @@ function bubbleFly() {
 
   if(bubble.pos.y >= 75 || bubble.pos.y < -3) {
     play("hit");
-    transitionGame();
+    loseGame();
     bubbleTick = 0;
   }
 
@@ -1080,56 +1134,83 @@ function bubbleFlyInit() {
   bubbleTick = 0;
 }
 
-function findItInit(){
-  charPosX = rnd(15, G.WIDTH);
-  charPosY = rnd(15, G.HEIGHT - 5);
-  timerUIlength = 18;
-  gameComplete = false;
-  gameFailed = false;
-  successPlayed = false;
+function ufo() {
+  color("black");
+	char("u", enemy.pos);
+
+	color("cyan");
+	particle(
+		enemy.pos.x,
+		enemy.pos.y,
+		100,
+		10,
+		PI/2,
+		PI/3
+	);
+
+	color("cyan");
+	line(platform.pos.x-7, platform.pos.y+7, platform.pos.x-7, platform.pos.y+35, 1);
+
+	color("cyan");
+	line(platform.pos.x+7, platform.pos.y+7, platform.pos.x+7, platform.pos.y+35, 1);
+	
+	color("red");
+	line(platform.pos.x-5, platform.pos.y, platform.pos.x+5, platform.pos.y, 4);
+
+	color("white");
+	line(platform.pos.x, platform.pos.y+7, platform.pos.x, platform.pos.y+35, 14);
+
+	color("green");
+	box(player.pos.x, player.pos.y, 3, 3);
+
+	color("white");
+	line(0, G.HEIGHT, G.WIDTH, G.HEIGHT, 20);
+
+	if (right) {
+		platform.pos.x += 0.1 * difficulty;
+		if (platform.pos.x >= G.WIDTH-20) right = false;
+	} else {
+		platform.pos.x -= 0.1 * difficulty;
+		if (platform.pos.x <= 20) right = true;
+	}
+
+	if (input.isJustPressed) {
+		if(right) {
+			player.pos.x += 1;
+		} else {
+			player.pos.x -= 1;
+		}
+	}
+
+	color("transparent");
+	const isColliding = box(player.pos.x, player.pos.y, 3, 3).isColliding.rect.cyan;
+	if (isColliding) {
+		play("select");
+		loseGame();
+	}
+
+	frameCount++;
+	if (frameCount == 60) {
+		addScore(10, G.WIDTH, G.HEIGHT/2);
+		frameCount = 0;
+	}
+	color("red");
+	text("MASH!", enemy.pos.x-33, G.HEIGHT/4);
 }
 
-function findIt(){
-  color("light_cyan");
-  text("FIND IT", 20,15);
-  arc(input.pos, 10.9, 4);
-  bar(input.pos.x + 15, input.pos.y + 15, 20, 4.5, .7);
+function ufoInit() {
+  platform = {
+    pos: vec(G.WIDTH/2-5, G.HEIGHT * 0.6)
+  };
 
-  if(!gameComplete){
-    if(input.pos.x <= charPosX + 8  && input.pos.x >= charPosX - 8 && 
-      input.pos.y <= charPosY + 8  && input.pos.y >= charPosY - 8){
-      if(timerUIlength > 0){
-        timerUIlength -= 0.25;
-        color("yellow");
-        bar(input.pos.x, input.pos.y - 15, timerUIlength, 3, 0)
-        color("black");
-      }else{
-        gameComplete = true;
-      }
-    }else{
-      timerUIlength = 18;
-      color("transparent");
-    }
-    if(successPlayed){
-      successPlayed = false;
-    }
-  }else{
-    color("black");
-    text("YOU WIN", 20,28);
-    addScore(30);
-    particle(charPosX, charPosY, 1.2, 2);
-    if(!successPlayed){
-      play("coin");
-      successPlayed = true;
-    }
-  }
+  enemy = {
+    pos: vec(G.WIDTH/2, 2)
+  };
 
-  // if the game was lost, subtract 20 points
-  if(!gameComplete && gameTimer >= 4.99){
-    play("explosion");
-    addScore(-20);
-  }
+  player = {
+    pos: vec(G.WIDTH/2, G.HEIGHT*0.7)
+  };
 
-  char("j", charPosX, charPosY);
-  
+  right = true;
+  frameCount = 0;
 }
