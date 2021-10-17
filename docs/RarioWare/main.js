@@ -89,6 +89,92 @@ rrrrrr
 rllllr
 rrrrrr
 rr  rr
+`,//beginning of nathan sprites (k - s)
+`
+     w
+   www
+  wwww
+ wwwww
+  wwwy
+  w yy
+`,
+`
+wwwwww
+wwwwww
+wwwwww
+wwwwww
+yyyyyy
+yyyyyy
+`,
+`
+w     
+ww    
+www   
+www   
+yww   
+yyw   
+`,
+`
+    yw
+    yl
+    ww
+   wyy
+    ww
+    yy
+`,
+`
+wwyyww
+cypylc
+wwwwww
+wppwyy
+yppyww
+yyyyyy
+`,
+`
+wyw   
+ywy   
+wwy   
+wyy   
+yyy   
+yy    
+`,
+`
+    yy
+     y
+     y
+      
+      
+      
+`,
+`
+rrrrry
+yyyyyy
+yyyyyy
+yyyyyy
+yyyyy 
+      
+`,
+`
+yy    
+y     
+y     
+      
+      
+      
+`,
+`
+ c c  
+c c c 
+c   c 
+ c c  
+  c   
+`, //ufo
+` 
+  cc
+ LLLL
+LLLLLL
+LLLLLL
+ cccc
 `
 ];
   
@@ -98,8 +184,9 @@ const G = {
   HEIGHT: 75,
 
   RANDOM_START: false,
-  STARTING_GAME: 2, // FIRST GAME INDEX IF RANDOM IS FALSE
-  GAME_TIMES: [8, 8, 6, 8, 8],  // Measured in seconds
+  STARTING_GAME: 6, // FIRST GAME INDEX IF RANDOM IS FALSE
+  GAME_TIMES: [8, 8, 6, 8, 8, 10, 10],  // Measured in seconds
+  LIVES: 3,
 
   // ICON MINIGAME
   STAR_SPEED_MIN: 0.5,
@@ -233,36 +320,111 @@ let gameFailed;
 let successPlayed;
 //---------------------------------
 
+//ufo minigame
+/**
+ * @type { Player }
+ */
+ let platform;
+
+ /**
+  * @type { Player }
+  */
+ let ufoPlayer
+
+ /**
+  * @type { Player }
+  */
+ let enemy;
+
+ /**
+  * @type { boolean }
+  */
+ let right;
+
+ /**
+  * @type { number }
+  */
+ let frameCount;
+
+//-----transition variables--------
+/**
+ * @typedef {{
+ * pos: Vector
+ * speed: number
+ * sinRate: number
+ * spriteOffset: Vector
+ * }} nathan
+ */
+let nathan;
+
+let isTransitionIntro = true;
+let isTransitionOutro = false;
+let isTransitionMiddle = false;
+let transitionBackgroundHeight = G.HEIGHT;
+let lives = 2;
+let livesBlink = false;
+let lifeBlinkCount = 0;
+let talkOffset = 0;
+let transitionPauseTimer = 0;
+let wonMicrogame = false;
+let lostMicrogame = false;
+let gameNotSwitched = true;
+let transitionInitialized = false;
+let isTransitioning = false;
+let timeoutIsWin = false;
+let bubbleFlyWin = false;
+let bubbleFlyLose = false;
+let tileWin = false;
+let tileLose = false;
+
+//---------------------------------
+
 function update() {
   if (!ticks) {
-    initialize()
+    initialize();
   }
   
   individualInit(); // initializes for the individual game
 
-  switch(gameIndex) {
-    case 0: 
-      tileMatcher();
-      break;
+  if(!isTransitioning)
+  {
+    switch(gameIndex) {
+      case 0: 
+        tileMatcher();
+        break;
+  
+      case 1:
+        dontPressIt();
+        break;
+  
+      case 2: 
+        magnetCollect();
+        break;
+  
+      case 3:
+        bubbleFly();
+        break;
+  
+      case 4:
+        ufo();
+        break;
 
-    case 1:
-      dontPressIt();
-      break;
-
-    case 2: 
-      magnetCollect();
-      break;
-
-    case 3:
-      bubbleFly();
-      break;
-    case 4:
-      findIt();
-      break;
-
+      case 5:
+        findIt();
+        break;
+  
+      case 6:
+        smooch();
+        break;
+  
+    }
   }
 
   timerManager();
+
+  transitionManager();
+
+  
   //??
 }
 
@@ -295,6 +457,13 @@ function initialize()
   player = {
     pos: vec(32, 72),
   };
+
+  lives = G.LIVES;
+  gameStarted = false;
+  wonMicrogame = false;
+  lostMicrogame = false;
+
+  gameTimer = 0;
 }
 
 function individualInit() 
@@ -305,6 +474,7 @@ function individualInit()
     // starts at 0
     switch(gameIndex) {
       case 0: 
+        tileMatcherInit();
         break;
 
       case 1:
@@ -320,7 +490,15 @@ function individualInit()
         break;
 
       case 4:
+        ufoInit();
+        break;
+
+      case 5:
         findItInit();
+        break;
+
+      case 6:
+        smoochInit();
         break;
     }
   }
@@ -341,26 +519,328 @@ function timerManager() {
   let barLength =  ((G.GAME_TIMES[currentGame.trueIndex] - gameTimer)/G.GAME_TIMES[currentGame.trueIndex]) * G.WIDTH;
   bar(0,G.HEIGHT - 1, barLength, 4.5,0,0);
   if (gameTimer > G.GAME_TIMES[currentGame.trueIndex]) {
+    if(timeoutIsWin)
+    {
+      winGame();
+    } else
+    {
+      loseGame();
+    }
+  }
+}
+
+function transitionManager()
+{
+  if(wonMicrogame || lostMicrogame)
+  {
     transitionGame();
   }
 }
 
 // switches to next index and resets timer
 function transitionGame() {
-  if (games.length > 1) {
-    games.splice(arrayIndex, 1);
-  } else {
-    games.pop();
-    fillGames();
+  if(!transitionInitialized)
+  {
+    transitionInit();
+    transitionInitialized = true;
   }
-  arrayIndex = floor(rnd(0, games.length - 1));
-  gameIndex = games[arrayIndex].trueIndex;
-  gameStarted = false;
+  color("light_red");
+  box(G.WIDTH / 2, transitionBackgroundHeight, G.WIDTH, G.HEIGHT + 20);
 
-  gameTimer = 0;
+  transitionIntro();
+
+  if(wonMicrogame)
+  {
+    transitionWin();
+  } else if(lostMicrogame)
+  {
+    transitionLose();
+  }
+
+  if(isTransitionOutro)
+  {
+    transitionPauseTimer++;
+
+    if(transitionPauseTimer >= 120)
+    {
+      if(gameNotSwitched)
+      {
+        if (games.length > 1) {
+          games.splice(arrayIndex, 1);
+        } else {
+          games.pop();
+          fillGames();
+        }
+        arrayIndex = floor(rndi(0, games.length - 1));
+        gameIndex = games[arrayIndex].trueIndex;
+        gameStarted = false;
+
+        gameTimer = 0;
+        gameNotSwitched = false;
+        isTransitioning = false;
+      }
+      transitionOutro();
+    } else
+    {
+      for(var i = 0; i < lives; i++)
+      {
+        color("black");
+        char("t", ((G.WIDTH / 2) - 10) + i * 10, (G.HEIGHT / 2) - 20);
+      }
+    }
+  }
+
+  drawNathan();
+}
+
+function transitionInit()
+{
+  nathan = {
+    pos: vec(G.WIDTH / 2, 140),
+    speed: 2,
+    sinRate: 0.05,
+    spriteOffset: vec(6, 6)
+  }
+
+  isTransitionIntro = true;
+  isTransitionOutro = false;
+  transitionBackgroundHeight = G.HEIGHT + (G.HEIGHT / 2);
+  isTransitionMiddle = false;
+  livesBlink = false;
+  lifeBlinkCount = 0;
+  talkOffset = 0;
+  transitionPauseTimer = 0;
+  wonMicrogame = false;
+  lostMicrogame = false;
+  gameNotSwitched = true;
+  transitionInitialized = false;
+
+}
+
+function transitionIntro()
+{
+  if(isTransitionIntro)
+  {
+    if(transitionBackgroundHeight > (G.HEIGHT/2))
+    {
+      transitionBackgroundHeight -= 4; 
+    } else
+    {
+      transitionBackgroundHeight = G.HEIGHT / 2;
+    }
+
+    if(nathan.pos.y > (G.HEIGHT / 2))
+    {
+      nathan.pos.y -= nathan.speed;
+    } else
+    {
+      isTransitionIntro = false;
+      isTransitionMiddle = true;
+      isTransitioning = true;
+    }
+  }
+}
+
+function livesWin()
+{
+  if(ticks % 30 == 0)
+  {
+    lifeBlinkCount++;
+    if(livesBlink)
+    {
+      livesBlink = false;
+      
+    } else
+    {
+      livesBlink = true;
+    }
+  }
+
+  if(livesBlink)
+  {
+    color("black");
+    for(var i = 0; i < lives; i++)
+    {
+      char("t", ((G.WIDTH / 2) - 10) + i * 10, (G.HEIGHT / 2) - 20);
+    }
+  }
+}
+
+function livesLose()
+{
+  if(ticks % 30 == 0)
+  {
+    lifeBlinkCount++;
+    if(livesBlink)
+    {
+      livesBlink = false;
+      
+    } else
+    {
+      livesBlink = true;
+    }
+  }
+
+  for(var i = 0; i < lives; i++)
+  {
+    color("black");
+    if(i == (lives - 1))
+    {
+      if(livesBlink)
+      {
+        char("t", ((G.WIDTH / 2) - 10) + i * 10, (G.HEIGHT / 2) - 20);
+      }
+    } else
+    {
+      char("t", ((G.WIDTH / 2) - 10) + i * 10, (G.HEIGHT / 2) - 20);
+    }
+  }
+
+}
+
+function nathanRad()
+{
+  if(ticks % 15 == 0)
+  {
+    if(talkOffset == 0)
+    {
+      talkOffset += 1;
+    } else
+    {
+      talkOffset -= 1;
+    }
+  }
+  color("black");
+  text("That was rad", nathan.pos.x - 33, nathan.pos.y + 20);
+}
+
+function nathanBad()
+{
+  if(ticks % 15 == 0)
+  {
+    if(talkOffset == 0)
+    {
+      talkOffset += 1;
+    } else
+    {
+      talkOffset -= 1;
+    }
+  }
+  color("black");
+  text("That was bad", nathan.pos.x - 33, nathan.pos.y + 20);
+}
+
+function transitionWin()
+{
+  if(!isTransitionIntro && !isTransitionOutro && isTransitionMiddle)
+  {
+    livesWin();
+    nathanRad();
+    if(lifeBlinkCount >= 8)
+    {
+      isTransitionMiddle = false;
+      isTransitionOutro = true;
+      play("coin");
+      addScore(100, G.WIDTH/2, (G.HEIGHT/2) - 10);
+    }
+  } else
+  {
+    talkOffset = 0;
+  }
+}
+
+function transitionLose()
+{
+  if(!isTransitionIntro && !isTransitionOutro && isTransitionMiddle)
+  {
+    livesLose();
+    nathanBad(); 
+
+    if(lifeBlinkCount >= 8)
+    { 
+      lives--;
+      play("explosion");
+      
+      if(lives <= 0)
+      {
+        isTransitioning = false;
+        transitionInitialized = false;
+        end();
+      }
+
+      isTransitionMiddle = false;
+      isTransitionOutro = true;
+    }
+  } else
+  {
+    talkOffset = 0;
+  }
+}
+
+function transitionOutro()
+{
+  if(isTransitionOutro)
+  {
+    if(nathan.pos.y < (G.HEIGHT / 2) + 25)
+    {
+      transitionBackgroundHeight -= 4; 
+    }
+    if(transitionBackgroundHeight < G.HEIGHT + (G.HEIGHT / 2))
+    {
+      transitionBackgroundHeight += 4; 
+    } else
+    {
+      transitionBackgroundHeight = G.HEIGHT + (G.HEIGHT / 2);
+    }
+
+    if(nathan.pos.y < (G.HEIGHT + 50))
+    {
+      nathan.pos.y += nathan.speed;
+    } else
+    {
+      isTransitionOutro = false;
+      lostMicrogame = false;
+      wonMicrogame = false;
+      transitionInitialized = false;
+    }
+  }
+}
+
+function drawNathan()
+{
+  color("black");
+  char("k", nathan.pos.x - nathan.spriteOffset.x, nathan.pos.y - nathan.spriteOffset.y);
+  char("l", nathan.pos.x, nathan.pos.y - nathan.spriteOffset.y);
+  char("m", nathan.pos.x + nathan.spriteOffset.x, nathan.pos.y - nathan.spriteOffset.y);
+  char("n", nathan.pos.x - nathan.spriteOffset.x, nathan.pos.y);
+  char("o", nathan.pos.x, nathan.pos.y);
+  char("p", nathan.pos.x + nathan.spriteOffset.x, nathan.pos.y);
+  char("q", nathan.pos.x - nathan.spriteOffset.x, nathan.pos.y + nathan.spriteOffset.y + talkOffset);
+  char("r", nathan.pos.x, nathan.pos.y + nathan.spriteOffset.y + talkOffset);
+  char("s", nathan.pos.x + nathan.spriteOffset.x, nathan.pos.y + nathan.spriteOffset.y + talkOffset);
+}
+
+
+function loseGame() {
+  if(!wonMicrogame)
+  {
+    lostMicrogame = true;
+  }
+}
+
+function winGame() {
+  if(!lostMicrogame)
+  {
+    wonMicrogame = true;
+  }
 }
 
 //~~~~~~~Microgames~~~~~~~
+function dontPressItInit()
+{
+  timeoutIsWin = true;
+}
+
 function dontPressIt() {
 
   var flag = 1;
@@ -380,10 +860,8 @@ function dontPressIt() {
   color("transparent");
 
   //color("red");
-  if(input.isJustPressed &&  rect(input.pos.x, input.pos.y, 1, 1).isColliding.rect.red) {
-    addScore(-100 * difficulty);
-    transitionGame();
-  }
+  if(input.isJustPressed &&  rect(input.pos.x, input.pos.y, 1, 1).isColliding.rect.red)
+    loseGame();
 
   if(flag == -1)
     color("green");
@@ -426,6 +904,13 @@ function dontPressItInit() {
       speed: rnd(G.STAR_SPEED_MIN, G.STAR_SPEED_MAX)
     };
   });
+}
+
+function tileMatcherInit()
+{
+  timeoutIsWin = false;
+  tileWin = false;
+  tileLose = false;
 }
 
 function tileMatcher() {
@@ -514,14 +999,23 @@ function tileMatcher() {
       color("green");
       particle(vec((G.WIDTH / 2 - 10), G.HEIGHT / 2), 40, 4, 20, 20);
       play('coin');
-      addScore(10 * difficulty);
-    }
-    else {
+      //addScore(10 * difficulty);
+      tileWin = true;
+    } else {
       color("red");
       particle(vec((G.WIDTH / 2 - 10), G.HEIGHT / 2), 40, 4, 90, 10);
       play('explosion');
-      addScore(-10 * difficulty);
+      //addScore(-10 * difficulty);
+      tileLose = true;
     }
+  }
+
+  if(tileWin)
+  {
+    winGame();
+  } else if (tileLose)
+  {
+    loseGame();
   }
 }
 
@@ -610,7 +1104,7 @@ function magnetCollect() {
     return (outOfBounds || d.isPulled);
     });
     if (mcDebris.length == 0) {
-      transitionGame();
+      winGame();
     }
 }
 
@@ -631,6 +1125,8 @@ function magnetInit() {
       isPulled: false,
     };
   });
+
+  timeoutIsWin = false;
 }
 
 function ExcludeArea(pos, width, height) {
@@ -704,27 +1200,37 @@ function bubbleFly() {
     const c = box(f.pos, f.width, 1).isColliding.char;
     if (c.h) {
       play("explosion");
-      addScore(-10 * difficulty);
-      transitionGame();
+      //addScore(-10 * difficulty);
+      bubbleFlyLose = true;
       return true;
     }
+    /*
     if(f.pos.x < -f.width / 2) {
       play("coin");
-      addScore(f.width * 0.2, vec(10, f.pos.y));
+      //addScore(f.width * 0.2, vec(10, f.pos.y));
     }
+    */
     return f.pos.x < -f.width / 2;
   });
 
   if(bubble.pos.y >= 75 || bubble.pos.y < -3) {
     play("hit");
-    addScore(-10 * difficulty);
-    transitionGame();
+    //addScore(-10 * difficulty);
+    bubbleFlyLose = true;
   }
 
   var y = 65;
   for( var i = 0; i < breath; i++) {
     rect(3, y, 3, 4);
     y -= 5;
+  }
+
+  if(bubbleFlyWin)
+  {
+    winGame();
+  } else if (bubbleFlyLose)
+  {
+    loseGame();
   }
 }
 
@@ -736,6 +1242,91 @@ function bubbleFlyInit() {
   floors = [];
   nextFloorDist = 0;
   breath = 10;
+  timeoutIsWin = true;
+  bubbleFlyWin = false;
+  bubbleFlyLose = false;
+}
+
+function ufo() {
+  color("black");
+	char("u", enemy.pos);
+
+	color("cyan");
+	particle(
+		enemy.pos.x,
+		enemy.pos.y,
+		100,
+		10,
+		PI/2,
+		PI/3
+	);
+
+	color("cyan");
+	line(platform.pos.x-7, platform.pos.y+7, platform.pos.x-7, platform.pos.y+35, 1);
+
+	color("cyan");
+	line(platform.pos.x+7, platform.pos.y+7, platform.pos.x+7, platform.pos.y+35, 1);
+	
+	color("red");
+	line(platform.pos.x-5, platform.pos.y, platform.pos.x+5, platform.pos.y, 4);
+
+	color("white");
+	line(platform.pos.x, platform.pos.y+7, platform.pos.x, platform.pos.y+35, 14);
+
+	color("green");
+	box(player.pos.x, player.pos.y, 3, 3);
+
+	color("white");
+	line(0, G.HEIGHT, G.WIDTH, G.HEIGHT, 20);
+
+	if (right) {
+		platform.pos.x += 0.1 * difficulty;
+		if (platform.pos.x >= G.WIDTH-20) right = false;
+	} else {
+		platform.pos.x -= 0.1 * difficulty;
+		if (platform.pos.x <= 20) right = true;
+	}
+
+	if (input.isJustPressed) {
+		if(right) {
+			player.pos.x += 1;
+		} else {
+			player.pos.x -= 1;
+		}
+	}
+
+	color("transparent");
+	const isColliding = box(player.pos.x, player.pos.y, 3, 3).isColliding.rect.cyan;
+	if (isColliding) {
+		play("select");
+		loseGame();
+	}
+
+	frameCount++;
+	if (frameCount == 60) {
+		//addScore(10, G.WIDTH, G.HEIGHT/2);
+		frameCount = 0;
+	}
+	color("red");
+	text("MASH!", enemy.pos.x-33, G.HEIGHT/4);
+}
+
+function ufoInit() {
+  platform = {
+    pos: vec(G.WIDTH/2-5, G.HEIGHT * 0.6)
+  };
+
+  enemy = {
+    pos: vec(G.WIDTH/2, 2)
+  };
+
+  player = {
+    pos: vec(G.WIDTH/2, G.HEIGHT*0.7)
+  };
+
+  right = true;
+  frameCount = 0;
+  timeoutIsWin = true;
 }
 
 function findItInit(){
@@ -745,6 +1336,7 @@ function findItInit(){
   gameComplete = false;
   gameFailed = false;
   successPlayed = false;
+  timeoutIsWin = false;
 }
 
 function findIt(){
@@ -774,20 +1366,230 @@ function findIt(){
   }else{
     color("black");
     text("YOU WIN", 20,28);
-    addScore(30);
+    //addScore(30);
     particle(charPosX, charPosY, 1.2, 2);
+    winGame();
     if(!successPlayed){
       play("coin");
+      winGame();
       successPlayed = true;
     }
   }
 
+  /*
   // if the game was lost, subtract 20 points
   if(!gameComplete && gameTimer >= 4.99){
     play("explosion");
-    addScore(-20);
+    //addScore(-20);
   }
+  */
 
   char("j", charPosX, charPosY);
-  
+}
+
+var smoochPlayerSize;
+var smoochPlayerSinSize;
+var smoochPlayerLipSpeed;
+var lipSize;
+var lipSinSize;
+var lipSpeed;
+var smoochPositionLeniency;
+var smoochSizeLeniency;
+var smoochGameWon;
+var smoochGameLost;
+var smoochEndTimer;
+
+/** @typedef {{pos: Vector}} Lips */
+/** @type { Lips } */
+let lips;
+
+function drawFaceBase()
+{
+	color("black");
+
+	//draw outline
+	line(10, -2, 5, 7, 4);
+	line(5, 7, 7, 48, 4);
+	line(7, 48, 25, 72, 4);
+	line(25, 72, 49, 72, 4);
+	line(49, 72, 69, 53, 4);
+	line(69, 53, 75, 28, 4);
+	line(75, 28, 75, -2, 4);
+
+	//draw wrinkles
+	line(17, 52, 26, 44, 4);
+	line(48, 44, 57, 52, 4);
+
+	//draw Nose
+	color("purple");
+	line(38, 25, 31, 40, 4);
+	line(31, 40, 40, 42, 4);
+	line(40, 42, 38, 25, 4);
+	line(35, 41, 38, 25, 4);
+
+}
+
+function drawFaceLose()
+{
+	drawFaceBase();
+	color("black");
+
+	//draw eyebrows
+	line(6, 8, 28, 18, 4);
+	line(46, 17, 68, 8, 4);
+
+	//draw eyes
+	arc(20, 23, 8, 4, 0, PI);
+	arc(56, 23, 8, 4, .3, PI);
+
+	line(11, 23, 28, 23, 4);
+	line(46, 23, 65, 23, 4);
+
+	color("black");
+
+}
+
+function drawFaceWin()
+{
+	drawFaceBase();
+	color("black");
+
+	//draw eyebrows
+	line(6, 18, 28, 8, 4);
+	line(46, 7, 68, 18, 4);
+
+	//draw eyes
+	arc(20, 23, 8, 4, 0, PI);
+	arc(56, 23, 8, 4, .3, PI);
+
+	line(26, 29, 28, 33, 2);
+	line(19, 33, 19, 36, 2);
+	line(11, 30, 9, 33, 2);
+
+	line(63, 30, 65, 34, 2);
+	line(56, 33, 56, 35, 2);
+	line(47, 30, 44, 33, 2);
+
+	//draw blush
+	color("purple");
+	line(9, 41, 12, 36, 4);
+	line(16, 41, 18, 37, 4);
+	line(22, 42, 25, 38, 4);
+
+	line(46, 42, 48, 38, 4);
+	line(53, 44, 56, 39, 4);
+	line(61, 42, 64, 38, 4);
+	
+
+
+	color("black");
+
+}
+
+function drawLips(pos, size)
+{
+	//upper lip
+	line(pos.x + (size * 16), pos.y, pos.x + (size * 5), pos.y - (size * 8), 4);
+	line(pos.x - (size * 15), pos.y, pos.x - (size * 6), pos.y - (size * 8), 4);
+
+	line(pos.x, pos.y - (size * 5), pos.x + (size * 5), pos.y - (size * 8), 4);
+	line(pos.x, pos.y - (size * 5), pos.x - (size * 6), pos.y - (size * 8), 4);
+
+	//bottom Lip
+	line(pos.x + (size * 16), pos.y, pos.x + (size * 5), pos.y + (size * 8), 4);
+	line(pos.x - (size * 15), pos.y, pos.x - (size * 5), pos.y + (size * 8), 4);
+	line(pos.x + (size * 3), pos.y + (size * 8), pos.x - (size * 3), pos.y + (size * 8), 4);
+}
+
+function smoochPlayerManager()
+{
+	if(!smoochGameWon && !smoochGameLost)
+	{
+		player.pos = vec(input.pos.x, input.pos.y);
+		smoochPlayerSinSize += smoochPlayerLipSpeed;
+		smoochPlayerSize =  (Math.sin(smoochPlayerSinSize) / 1.2) + 1;
+		color("cyan");
+		drawLips(player.pos, smoochPlayerSize);
+	}
+}
+
+function smoochLipManager()
+{
+	if(smoochGameWon)
+	{
+		color("cyan");
+	} else
+	{
+		color("red");
+	}
+	drawLips(lips.pos, lipSize);
+}
+
+function winCheck()
+{
+	if(input.isJustPressed && !smoochGameLost && !smoochGameWon)
+	{
+		let positionCheck = (player.pos.x >= lips.pos.x - smoochPositionLeniency && player.pos.x <= lips.pos.x + smoochPositionLeniency && player.pos.y >= lips.pos.y - smoochPositionLeniency && player.pos.y <= lips.pos.y + smoochPositionLeniency );
+		let sizeCheck = (smoochPlayerSize >= lipSize - smoochSizeLeniency && smoochPlayerSize <= lipSize + smoochSizeLeniency);
+		if(positionCheck && sizeCheck)
+		{
+			play("coin");
+			smoochGameWon = true;
+		} else
+		{
+			play("explosion");
+			smoochGameLost = true;
+		}
+	}
+}
+
+function smoochInit()
+{
+	lips = {pos: vec(37, 56)};
+	player = {pos: vec(37, 56)};
+
+	smoochPlayerSize = 1;
+	smoochPlayerSinSize = 0;
+	smoochPlayerLipSpeed = .05;
+
+	lipSize = 1;
+	lipSinSize = 0;
+	lipSpeed = 0.05;
+
+	smoochGameLost = false;
+	smoochGameWon = false;	
+
+	smoochPositionLeniency = 3;
+	smoochSizeLeniency = .18;
+
+	smoochEndTimer = 0;
+  timeoutIsWin = false;
+}
+
+function smooch() {
+
+	smoochLipManager();
+
+	smoochPlayerManager();
+	
+	winCheck();
+
+	if(smoochGameWon)
+	{
+		drawFaceWin();
+		smoochEndTimer++;
+		if(smoochEndTimer > 90)
+		{
+			winGame();
+		}
+	} else if(smoochGameLost)
+	{
+		drawFaceLose();
+		smoochEndTimer++;
+		if(smoochEndTimer > 90)
+		{
+			loseGame();
+		}
+	}
+
 }
