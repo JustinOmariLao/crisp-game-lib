@@ -183,8 +183,8 @@ const G = {
   WIDTH: 75,
   HEIGHT: 75,
 
-  RANDOM_START: false,
-  STARTING_GAME: 6, // FIRST GAME INDEX IF RANDOM IS FALSE
+  RANDOM_START: true,
+  STARTING_GAME: 2, // FIRST GAME INDEX IF RANDOM IS FALSE
   GAME_TIMES: [8, 5, 6, 8, 8, 10, 10],  // Measured in seconds
   LIVES: 3,
 
@@ -203,15 +203,15 @@ const G = {
 const MC = {
   PLAYER_MOVE_SPEED: 0.65,
 	PLAYER_FRICTION: 0.9,
-	PLAYER_PULL_RANGE: 20,
+	PLAYER_PULL_RANGE: 15,
 	PLAYER_PULL_SPEED: 0.1,
 
-  DEBRIS_NUMBER: 15,
+  DEBRIS_NUMBER: 5,
 	DEBRIS_SIZE_MIN: 4,
 	DEBRIS_SIZE_MAX: 7,
 	DEBRIS_ATTACH_DISTANCE: 5,
 	DEBRIS_FRICTION: 0.95,
-	DEBRIS_SPAWN_SPACING: 15,
+	DEBRIS_SPAWN_SPACING: 5,
   DEBRIS_SPAWN_OFFSET: 5,
 }
 
@@ -1128,7 +1128,10 @@ function magnetInit() {
 
 function ExcludeArea(pos, width, height) {
   var posX = rnd(0, 1) < 0.5 ? rnd(MC.DEBRIS_SPAWN_OFFSET, pos.x - width) : rnd(pos.x + width, G.WIDTH - MC.DEBRIS_SPAWN_OFFSET);
-  var posY = rnd(0, 1) < 0.5 ? rnd(MC.DEBRIS_SPAWN_OFFSET, pos.y - height) : rnd(pos.y + height, G.HEIGHT - (MC.DEBRIS_SPAWN_OFFSET + 5000));
+  var posY = rnd(0, 1) < 0.5 ? rnd(MC.DEBRIS_SPAWN_OFFSET, pos.y - height) : rnd(pos.y + height, G.HEIGHT - (MC.DEBRIS_SPAWN_OFFSET + 20));
+  if (posY > G.HEIGHT - 20) {
+    posY = rnd(MC.DEBRIS_SPAWN_OFFSET, G.HEIGHT-30);
+  }
   const vector = vec(posX, posY);
   return vector;
 }
