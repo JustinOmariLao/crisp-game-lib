@@ -161,11 +161,11 @@ y
       
 `,
 `
- r r  
-r r r 
-r   r 
- r r  
-  r   
+ c c  
+c c c 
+c   c 
+ c c  
+  c   
 `, //ufo
 ` 
   cc
@@ -516,7 +516,7 @@ function transitionGame() {
     transitionInit();
     transitionInitialized = true;
   }
-  color("light_blue");
+  color("light_red");
   box(G.WIDTH / 2, transitionBackgroundHeight, G.WIDTH, G.HEIGHT + 20);
 
   transitionIntro();
