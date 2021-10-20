@@ -598,7 +598,7 @@ function transitionInit()
   nathan = {
     pos: vec(G.WIDTH / 2, 140),
     speed: 2,
-    sinRate: 0.05,
+    sinRate: 0,
     spriteOffset: vec(6, 6)
   }
 
@@ -710,8 +710,11 @@ function nathanRad()
       talkOffset -= 1;
     }
   }
+  nathan.sinRate += 0.05;
+  nathan.pos.y += (Math.sin(nathan.sinRate)/7);
+
   color("black");
-  text("That was rad", nathan.pos.x - 33, nathan.pos.y + 20);
+  text("That was rad", (G.WIDTH/2) - 33, (G.HEIGHT/2) + 20);
 }
 
 function nathanBad()
@@ -726,8 +729,11 @@ function nathanBad()
       talkOffset -= 1;
     }
   }
+  nathan.sinRate += 0.05;
+  nathan.pos.y += (Math.sin(nathan.sinRate)/7);
+
   color("black");
-  text("That was bad", nathan.pos.x - 33, nathan.pos.y + 20);
+  text("That was bad", (G.WIDTH/2) - 33, (G.HEIGHT/2) + 20);
 }
 
 function transitionWin()
