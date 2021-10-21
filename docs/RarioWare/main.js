@@ -1286,10 +1286,10 @@ function ufo() {
 	line(0, G.HEIGHT, G.WIDTH, G.HEIGHT, 20);
 
 	if (right) {
-		platform.pos.x += 0.1 * difficulty;
+		platform.pos.x += 0.08;
 		if (platform.pos.x >= G.WIDTH-20) right = false;
 	} else {
-		platform.pos.x -= 0.1 * difficulty;
+		platform.pos.x -= 0.08;
 		if (platform.pos.x <= 20) right = true;
 	}
 
