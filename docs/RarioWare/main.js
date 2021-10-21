@@ -219,7 +219,10 @@ options = {
   theme: 'pixel',
   isPlayingBgm: true,
   seed:1124, //4,7,9,11,65, 1124
-  viewSize: {x: G.WIDTH, y: G.HEIGHT}
+  viewSize: {x: G.WIDTH, y: G.HEIGHT},
+  isCapturing: true,
+  isCapturingGameCanvasOnly: true,
+  captureCanvasScale: 1
 };
 
 
